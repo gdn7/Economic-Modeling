@@ -1,0 +1,180 @@
+---
+title: "VAR Models"
+author: "Niranjan Dakshinamurthy"
+date: "September 25, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+### Actual vs Fitted chart
+```{r, echo = FALSE}
+library(vars)
+library(readxl)
+
+    # path of excel file
+   # excel_path <- "C:\\Users\\DakshiN1\\Desktop\\VARMacro_Data.xlsx"
+
+      # Function: read excel data into data frame. Range is by col:col
+           #importer_read <- function(range) {
+           #df <- read_excel(excel_path, range = cell_cols(range))
+           #df <- data.frame(df)
+          # retur#n(df)
+           # }
+
+# Read data from file xlsx
+#df <- importer_read("A:T")
+df=read.csv("C:\\Users\\DakshiN1\\Desktop\\VAR\\Macro_Data.csv")
+
+# Bind data by the list order as requirement
+ raw_data <- df[, c("UR", "CPI", "TR10", "TR3M", "SP500", "HPI", "CREPI")]
+#raw_data <- df[, c("RGDP", "UR", "CPI", "TR10", "SP500", "HPI", "CREPI")]
+# raw_data <- df[, c("RGDP", "UR", "CPI", "TR10", "TR3M", "SP500", "HPI", "CREPI")]
+# raw_data <- df[, c("RGDP", "UR", "CPI", "TR10", "TR3M", "SP500", "HPI")]
+
+# ------------------------------VAR MODEL: IMPLEMENTATION-------------------------------
+
+# 0. Processing with data follow series above
+data4VAR <- raw_data
+# processing with RGDP
+#data4VAR[, 1] <- log(data4VAR[, 1])
+# processing with RGDP
+data4VAR[, 1] <- data4VAR[, 1]
+# processing with CPI
+data4VAR[, 2] <- log(data4VAR[, 2])
+# processing with log SP500, HPI, CREPI column
+data4VAR[, 5:7] <- log(data4VAR[, 5:7])
+
+# Remove INF values
+data4VAR[!is.finite(as.matrix(data4VAR))] <- 0
+
+# Processing calculate dlog
+#data4VAR[, 1] <- c(NA, diff(data4VAR$RGDP))
+#data4VAR[, 1] <- c(NA, diff(data4VAR$UR))
+data4VAR[, 2] <- c(NA, diff(data4VAR$CPI))
+data4VAR[, 3] <- c(NA, diff(data4VAR$TR10))
+data4VAR[, 4] <- c(NA, diff(data4VAR$TR3M))
+data4VAR[, 5] <- c(NA, diff(data4VAR$SP500))
+data4VAR[, 6] <- c(NA, diff(data4VAR$HPI))
+data4VAR[, 7] <- c(NA, diff(data4VAR$CREPI))
+
+#processing first difference for dlog CPI (diff twice)
+data4VAR[, 2] <- c(NA, diff(data4VAR$CPI))
+
+# Remove NA values
+data4VAR[is.na(data4VAR)] <- 0
+
+
+# 1. Run VARselect  
+varModel4VAR <- VARselect(data4VAR, lag.max = 5, type = "const")
+
+# 2. Calculate K
+K4VAR = varModel4VAR$selection[1]
+#K4VAR = 3
+
+# VAR_Const 
+VAR_Const <- VAR(data4VAR, K4VAR, type = c("const"), season = NULL, exogen = NULL, lag.max = NULL)
+print(VAR_Const)
+
+#------------------------------------------DIAGNOSTIC TESTS for VAR ----------------------------
+
+# 0. Fitted values
+fitted_rs <- fitted(VAR_Const)
+
+# Process to make count of series is same 
+dataActual <- data4VAR[-c(1, 2),]
+
+# pilot
+for (n in 1:ncol(data4VAR)) {
+    fitted_ts <- ts(fitted_rs[, n], frequency=4, start =c(1976,3))
+    data4VAR_ts <- ts(dataActual[, n], frequency=4, start =c(1976,3))
+    plot(data4VAR_ts, type = "l", col = "brown4", xlab = colnames(data4VAR[n]), ylab = "Actual vs Fitted")
+    lines(fitted_ts, col = "dodgerblue4")
+}
+```
+
+######### DIAGNOSTIC TESTS for VAR ########
+```{r, echo = FALSE}
+# 1. Calculate NORMALITY test
+nt_const <- normality.test(VAR_Const, multivariate.only = TRUE)
+
+
+# 2. Calculate SERIAL test
+st_asymptotic <- serial.test(VAR_Const, lags.pt = 16, type = "PT.asymptotic")
+st_adjusted <- serial.test(VAR_Const, lags.pt = 16, type = "PT.adjusted")
+st_BG <- serial.test(VAR_Const, lags.pt = 16, type = "BG")
+st_ES <- serial.test(VAR_Const, lags.pt = 16, type = "ES")
+
+# 3. Calculatate STABILITY test
+stab_test <- stability(VAR_Const, type = "OLS-CUSUM")
+
+# 4. Dynamic forecasting
+predict_rs <- predict(VAR_Const, n.ahead = 8, ci = 0.95)
+```
+
+
+#### NORMALITY test
+```{r, echo = FALSE}
+print(nt_const)
+```
+
+
+#### SERIAL test: type: adjusted
+```{r, echo = FALSE}
+print(st_adjusted)
+```
+
+
+#### SERIAL test: type: asymptotic
+```{r, echo = FALSE}
+print(st_asymptotic)
+```
+
+
+#### SERIAL test: type: BG
+```{r, echo = FALSE}
+print(st_BG)
+```
+
+
+#### SERIAL test: type: ES
+```{r, echo = FALSE}
+print(st_ES)
+```
+
+
+#### STABILITY test: type = "OLS-CUSUM"
+```{r, echo = FALSE}
+print(stab_test)
+```
+
+
+#### Predict with VAR
+```{r, echo = FALSE}
+print(predict_rs)
+```
+
+#### FANCHART 
+```{r , echo = FALSE, fig.width=14, fig.height=12}
+fanchart(predict_rs)
+```
+
+
+install.packages("rmarkdown")
+# installing/loading the package:
+if(!require(installr)) { install.packages("installr"); require(installr)} #load / install+load installr
+ 
+# Installing pandoc
+install.pandoc()
+
+
+library(rmarkdown)
+render("a.rmd")
