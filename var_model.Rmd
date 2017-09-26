@@ -18,7 +18,9 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r, echo = FALSE}
 library(vars)
 library(readxl)
+library(rmarkdown)
 
+render("a.rmd")
 
 # Read data from file xlsx
 #df <- importer_read("A:T")
@@ -157,7 +159,3 @@ print(predict_rs)
 fanchart(predict_rs)
 ```
 
-
-
-library(rmarkdown)
-render("a.rmd")
