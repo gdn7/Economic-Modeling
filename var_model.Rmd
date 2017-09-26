@@ -19,15 +19,6 @@ When you click the **Knit** button a document will be generated that includes bo
 library(vars)
 library(readxl)
 
-    # path of excel file
-   # excel_path <- "C:\\Users\\DakshiN1\\Desktop\\VARMacro_Data.xlsx"
-
-      # Function: read excel data into data frame. Range is by col:col
-           #importer_read <- function(range) {
-           #df <- read_excel(excel_path, range = cell_cols(range))
-           #df <- data.frame(df)
-          # retur#n(df)
-           # }
 
 # Read data from file xlsx
 #df <- importer_read("A:T")
